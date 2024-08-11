@@ -46,6 +46,8 @@ class GUI:
         grid_layout.addWidget(QLabel("MEDIAN"), 0, 4, alignment=Qt.AlignmentFlag.AlignCenter)
         grid_layout.addWidget(QLabel("EASY"), 0, 5, alignment=Qt.AlignmentFlag.AlignCenter)
         grid_layout.addWidget(QLabel("N"), 0, 6, alignment=Qt.AlignmentFlag.AlignCenter)
+        grid_layout.addWidget(QLabel("REVIEW\nMODE"), 0, 7, alignment=Qt.AlignmentFlag.AlignCenter)
+        grid_layout.addWidget(QLabel("LEARN\nMODE"), 0, 8, alignment=Qt.AlignmentFlag.AlignCenter)
 
         i = 1
         for mid in self.add_on_config.get_models_ids():
@@ -96,6 +98,14 @@ class GUI:
                 n_text = str(self.add_on_config.get_template_state(mid=mid, t_ord=t_ord, key="n"))
                 n_label = QLabel(n_text)
                 grid_layout.addWidget(n_label, i, 6, alignment=Qt.AlignmentFlag.AlignCenter)
+                ###############################################################
+                review_mode_text = str(self.add_on_config.get_template_state(mid=mid, t_ord=t_ord, key="review_mode"))
+                review_mode_label = QLabel(review_mode_text)
+                grid_layout.addWidget(review_mode_label, i, 7, alignment=Qt.AlignmentFlag.AlignCenter)
+                ###############################################################
+                learn_mode_text = str(self.add_on_config.get_template_state(mid=mid, t_ord=t_ord, key="learn_mode"))
+                learn_mode_label = QLabel(learn_mode_text)
+                grid_layout.addWidget(learn_mode_label, i, 8, alignment=Qt.AlignmentFlag.AlignCenter)
                 ###############################################################
                 i += 1
         dlg.setLayout(grid_layout)

@@ -51,7 +51,9 @@ class AddonConfig:
                     "hard_quantile": 0,
                     "easy_quantile": 0,
                     "median_quantile": 0,
-                    "n": 0
+                    "n": 0,
+                    "review_mode": "4333",
+                    "learn_mode": "3311"
                 }
 
     def get_model_state(self, mid: str, key: str):

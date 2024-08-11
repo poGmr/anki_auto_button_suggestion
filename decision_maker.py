@@ -11,25 +11,41 @@ class DecisionMaker:
         self.t_ord: str = t_ord
         self.t_ord_name: str = self.add_on_config.get_template_state(mid=self.mid, t_ord=self.t_ord, key="name")
 
-    def get_decision(self, c_time_taken: int, c_type: int, c_queue: int):
+    def get_decision_4333(self, c_time_taken: int):
+        easy_quantile = self.add_on_config.get_template_state(mid=self.mid, t_ord=self.t_ord, key="easy_quantile")
+        decision: int = 0
+        if c_time_taken < easy_quantile:
+            decision = 4
+        if c_time_taken >= easy_quantile:
+            decision = 3
+        return decision
+
+    def get_decision_4332(self, c_time_taken: int):
         easy_quantile = self.add_on_config.get_template_state(mid=self.mid, t_ord=self.t_ord, key="easy_quantile")
         hard_quantile = self.add_on_config.get_template_state(mid=self.mid, t_ord=self.t_ord, key="hard_quantile")
         decision: int = 0
-        if c_type in (0, 2) and c_queue in (0, 2, 4):
-            if c_time_taken > hard_quantile:
-                decision = 2
-            if easy_quantile <= c_time_taken <= hard_quantile:
-                decision = 3
-            if c_time_taken < easy_quantile:
-                decision = 4
+        if c_time_taken > hard_quantile:
+            decision = 2
+        if easy_quantile <= c_time_taken <= hard_quantile:
+            decision = 3
+        if c_time_taken < easy_quantile:
+            decision = 4
+        return decision
 
-        if c_type in (1, 3) and c_queue in (1, 3):
-            if c_time_taken > hard_quantile:
-                decision = 1
-            if c_time_taken <= hard_quantile:
-                decision = 3
+    def get_decision_3311(self, c_time_taken: int):
+        median_quantile = self.add_on_config.get_template_state(mid=self.mid, t_ord=self.t_ord, key="median_quantile")
+        decision: int = 0
+        if c_time_taken > median_quantile:
+            decision = 1
+        if c_time_taken <= median_quantile:
+            decision = 3
+        return decision
 
-        debug_output = f"[{self.mid_name}][{self.t_ord_name}] Card time taken: {c_time_taken},"
-        debug_output += f" card type: {c_type}, card queue: {c_queue}, decision: {decision}"
-        self.logger.debug(debug_output)
+    def get_decision_3331(self, c_time_taken: int):
+        hard_quantile = self.add_on_config.get_template_state(mid=self.mid, t_ord=self.t_ord, key="hard_quantile")
+        decision: int = 0
+        if c_time_taken > hard_quantile:
+            decision = 1
+        if c_time_taken <= hard_quantile:
+            decision = 3
         return decision

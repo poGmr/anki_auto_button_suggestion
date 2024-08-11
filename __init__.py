@@ -20,7 +20,7 @@ def initialize_logger():
         formatter = logging.Formatter(log_format)
         file_handler.setFormatter(formatter)
         result.addHandler(file_handler)
-        result.setLevel(logging.DEBUG)
+        result.setLevel(logging.INFO)
     return result
 
 
@@ -67,6 +67,7 @@ REVLOG_TYPE_MAP = {
 def gui_hook_profile_did_open():
     global logger
     global addon_config
+    global menu_button_added
     logger.info("#")
     logger.info("################################### ADD-ON STARTED #################################################")
     logger.info("#")
@@ -76,8 +77,23 @@ def gui_hook_profile_did_open():
             if addon_config.get_template_state(mid=mid, t_ord=t_ord, key="enabled"):
                 statistics = TimeStatistic(logger=logger, add_on_config=addon_config, mid=mid, t_ord=t_ord)
                 statistics.update_template_stats()
-    addon_gui = GUI(logger=logger, add_on_config=addon_config)
-    gui_hooks.profile_did_open.append(addon_gui.add_menu_button)
+    if not menu_button_added:
+        try:
+            addon_gui = GUI(logger=logger, add_on_config=addon_config)
+            gui_hooks.profile_did_open.append(addon_gui.add_menu_button)
+            menu_button_added = True
+            logger.debug("Menu button added successfully.")
+        except Exception as e:
+            logger.error(f"Failed to add menu button: {e}")
+    else:
+        logger.debug("Menu button was already added, skipping.")
+
+
+def profile_will_close():
+    global addon_config
+    global menu_button_added
+    addon_config.__exit__()
+    menu_button_added = False
 
 
 def gui_hook_reviewer_will_init_answer_buttons(buttons_tuple: tuple[bool, Literal[1, 2, 3, 4]], reviewer: Reviewer,
@@ -107,7 +123,25 @@ def gui_hook_reviewer_will_init_answer_buttons(buttons_tuple: tuple[bool, Litera
         return buttons_tuple
     ####################################################################################################
     dec_maker = DecisionMaker(logger=logger, add_on_config=addon_config, mid=mid, t_ord=t_ord)
-    decision = dec_maker.get_decision(c_time_taken, c_type, c_queue)
+    decision: int = 3
+    debug_output = ""
+    if c_type in (1, 3) and c_queue in (1, 3):
+        learn_mode = addon_config.get_template_state(mid=mid, t_ord=t_ord, key="learn_mode")
+        if learn_mode == "3311":
+            decision = dec_maker.get_decision_3311(c_time_taken)
+        if learn_mode == "3331":
+            decision = dec_maker.get_decision_3331(c_time_taken)
+        debug_output = f"[{mid_name}][{t_ord_name}] Mode: {learn_mode}, Card time taken: {c_time_taken},"
+    if c_type in (0, 2) and c_queue in (0, 2, 4):
+        review_mode = addon_config.get_template_state(mid=mid, t_ord=t_ord, key="review_mode")
+        if review_mode == "4332":
+            decision = dec_maker.get_decision_4332(c_time_taken)
+        if review_mode == "4333":
+            decision = dec_maker.get_decision_4333(c_time_taken)
+        debug_output = f"[{mid_name}][{t_ord_name}] Mode: {review_mode}, Card time taken: {c_time_taken},"
+    debug_output += f" card type: {c_type}, card queue: {c_queue}, decision: {decision}"
+    logger.debug(debug_output)
+
     ####################################################################################################
     b1 = (1, 'Again')
     b2 = (2, 'Hard')
@@ -135,18 +169,21 @@ def gui_hook_reviewer_did_answer_card(reviewer: Reviewer, card: Card, ease: Lite
     mid_name: str = addon_config.get_model_state(mid=mid, key="name")
     t_ord = str(card.ord)  # 0,1,2 Type of cards, EN->PL, PL->EN, EN->Write, etc,
     t_ord_name: str = addon_config.get_template_state(mid=mid, t_ord=t_ord, key="name")
-    logger_output = f"[{mid_name}][{t_ord_name}] User pressed button: {ease}."
+    c_type = card.type
+    c_queue = card.queue
+    if c_type in (1, 3) and c_queue in (1, 3):
+        logger_output = f"[LEARN][{mid_name}][{t_ord_name}] User pressed button: {ease}."
+    elif c_type in (0, 2) and c_queue in (0, 2, 4):
+        logger_output = f"[REVIEW][{mid_name}][{t_ord_name}] User pressed button: {ease}."
+    else:
+        logger_output = f"Error of type / queue."
     logger_output += f" Auto button was: {reviewer._defaultEase()}"
     logger.info(logger_output)
 
 
-def profile_will_close():
-    global addon_config
-    addon_config.__exit__()
-
-
 logger: logging.Logger = initialize_logger()
 addon_config: AddonConfig
+menu_button_added: bool = False
 
 gui_hooks.profile_did_open.append(gui_hook_profile_did_open)
 gui_hooks.reviewer_will_init_answer_buttons.append(gui_hook_reviewer_will_init_answer_buttons)

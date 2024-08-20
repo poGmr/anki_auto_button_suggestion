@@ -1,4 +1,3 @@
-/*.log
-/meta.json
-/*.xml
-/anki_auto_button_suggestion.iml
+**/*.log
+**/meta.json
+**/*.xml

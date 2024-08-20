@@ -3,6 +3,8 @@ import logging
 from typing import Dict, Any
 
 
+# TODO: add modi and remove
+# TODO: write config per profile
 class AddonConfig:
     def __init__(self, logger: logging.Logger):
         self.logger: logging.Logger = logger

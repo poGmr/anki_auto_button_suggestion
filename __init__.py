@@ -69,8 +69,6 @@ def gui_hook_profile_did_open():
     global addon_config
     global menu_button_added
     logger.info("#")
-    logger.info("################################### ADD-ON STARTED #################################################")
-    logger.info("#")
     addon_config = AddonConfig(logger=logger)
     for mid in addon_config.get_models_ids():
         for t_ord in addon_config.get_templates_ids(mid):

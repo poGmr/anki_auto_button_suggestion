@@ -20,7 +20,7 @@ def initialize_logger():
         formatter = logging.Formatter(log_format)
         file_handler.setFormatter(formatter)
         result.addHandler(file_handler)
-        result.setLevel(logging.INFO)
+        result.setLevel(logging.DEBUG)
     return result
 
 
@@ -67,7 +67,7 @@ REVLOG_TYPE_MAP = {
 def gui_hook_profile_did_open():
     global logger
     global addon_config
-    global menu_button_added
+    global gui_menu
     logger.info("#")
     addon_config = AddonConfig(logger=logger)
     for mid in addon_config.get_models_ids():
@@ -75,23 +75,19 @@ def gui_hook_profile_did_open():
             if addon_config.get_template_state(mid=mid, t_ord=t_ord, key="enabled"):
                 statistics = TimeStatistic(logger=logger, add_on_config=addon_config, mid=mid, t_ord=t_ord)
                 statistics.update_template_stats()
-    if not menu_button_added:
-        try:
-            addon_gui = GUI(logger=logger, add_on_config=addon_config)
-            gui_hooks.profile_did_open.append(addon_gui.add_menu_button)
-            menu_button_added = True
-            logger.debug("Menu button added successfully.")
-        except Exception as e:
-            logger.error(f"Failed to add menu button: {e}")
-    else:
-        logger.debug("Menu button was already added, skipping.")
+
+    gui_menu = GUI(logger=logger, add_on_config=addon_config)
+    gui_hooks.profile_did_open.append(gui_menu.add_menu_button)
 
 
 def profile_will_close():
     global addon_config
-    global menu_button_added
+    global gui_menu
+    gui_hooks.profile_did_open.remove(gui_menu.add_menu_button)
+    gui_menu.__exit__()
+    del gui_menu
     addon_config.__exit__()
-    menu_button_added = False
+    del addon_config
 
 
 def gui_hook_reviewer_will_init_answer_buttons(buttons_tuple: tuple[bool, Literal[1, 2, 3, 4]], reviewer: Reviewer,
@@ -181,7 +177,7 @@ def gui_hook_reviewer_did_answer_card(reviewer: Reviewer, card: Card, ease: Lite
 
 logger: logging.Logger = initialize_logger()
 addon_config: AddonConfig
-menu_button_added: bool = False
+gui_menu: GUI
 
 gui_hooks.profile_did_open.append(gui_hook_profile_did_open)
 gui_hooks.reviewer_will_init_answer_buttons.append(gui_hook_reviewer_will_init_answer_buttons)

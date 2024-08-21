@@ -1,6 +1,8 @@
 from aqt import mw
 import logging
 from typing import Dict, Any
+import os
+import json
 
 
 # TODO: add modi and remove
@@ -9,16 +11,31 @@ class AddonConfig:
     def __init__(self, logger: logging.Logger):
         self.logger: logging.Logger = logger
         self.logger.debug("__init__")
-        self.raw: Dict[str, Any] = mw.addonManager.getConfig(__name__)
+        self.raw: Dict[str, Any] = self._load()
         self._init_decks_update()
 
     def __exit__(self):
         self.logger.debug("__exit__")
         self._save()
 
+    def _load(self):
+        self.logger.debug("_load")
+        profile_folder = mw.pm.profileFolder()
+        config_path = os.path.join(profile_folder, "auto_button_suggestion_config.json")
+        if os.path.exists(config_path):
+            with open(config_path, "r") as f:
+                config = json.load(f)
+        else:
+            config = {}
+        return config
+
     def _save(self):
         self.logger.debug("_save")
-        mw.addonManager.writeConfig(__name__, self.raw)
+        profile_folder = mw.pm.profileFolder()
+        config_path = os.path.join(profile_folder, "auto_button_suggestion_config.json")
+
+        with open(config_path, "w") as f:
+            json.dump(self.raw, f, indent=4)
 
     def _init_decks_update(self):
         self.logger.debug("_init_decks_update")

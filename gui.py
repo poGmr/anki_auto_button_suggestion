@@ -12,6 +12,9 @@ class GUI:
         self.add_on_config: AddonConfig = add_on_config
         self.menu_button = None
 
+    def __exit__(self):
+        mw.form.menuTools.removeAction(self.menu_button)
+
     def add_menu_button(self):
         self.menu_button = QAction("Auto Button Suggestion", mw)
         self.menu_button.triggered.connect(self.create_settings_window)

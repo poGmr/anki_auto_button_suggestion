@@ -72,7 +72,7 @@ class TimeStatistic:
         return self.raw_times[first_5_per:last_5_per]
 
     def _get_quantiles(self) -> tuple[int, int, int]:
-        if self.clean_times_n < 1:
+        if self.clean_times_n < 4:
             self.logger.debug(f"[{self.mid_name}][{self.t_ord_name}] _get_quantiles - empty list.")
             return 0, 0, 0
         quantiles_times = [round(q) for q in quantiles(self.clean_times, n=4)]

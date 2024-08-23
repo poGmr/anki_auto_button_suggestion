@@ -2,13 +2,18 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 from .addon_config import AddonConfig
-from aqt import gui_hooks
 from .gui import GUI
 from anki.cards import Card
 from typing import Literal
 from aqt.reviewer import Reviewer
 from .time_statistics import TimeStatistic
 from .decision_maker import DecisionMaker
+from PyQt6.QtGui import QAction
+from aqt import mw
+from aqt.gui_hooks import profile_did_open
+from aqt.gui_hooks import profile_will_close
+from aqt.gui_hooks import reviewer_will_init_answer_buttons
+from aqt.gui_hooks import reviewer_did_answer_card
 
 
 def initialize_logger():
@@ -20,7 +25,7 @@ def initialize_logger():
         formatter = logging.Formatter(log_format)
         file_handler.setFormatter(formatter)
         result.addHandler(file_handler)
-        result.setLevel(logging.DEBUG)
+        result.setLevel(logging.INFO)
     return result
 
 
@@ -64,10 +69,12 @@ REVLOG_TYPE_MAP = {
 }
 
 
+@profile_did_open.append
 def gui_hook_profile_did_open():
     global logger
     global addon_config
     global gui_menu
+    global menu_button
     logger.info("#")
     addon_config = AddonConfig(logger=logger)
     for mid in addon_config.get_models_ids():
@@ -77,19 +84,26 @@ def gui_hook_profile_did_open():
                 statistics.update_template_stats()
 
     gui_menu = GUI(logger=logger, add_on_config=addon_config)
-    gui_hooks.profile_did_open.append(gui_menu.add_menu_button)
+    menu_button = QAction("Auto Button Suggestion", mw)
+    menu_button.triggered.connect(gui_menu.create_settings_window)
+    mw.form.menuTools.addAction(menu_button)
 
 
+@profile_will_close.append
 def profile_will_close():
+    global logger
     global addon_config
     global gui_menu
-    gui_hooks.profile_did_open.remove(gui_menu.add_menu_button)
-    gui_menu.__exit__()
+    global menu_button
+    mw.form.menuTools.removeAction(menu_button)
+    menu_button.triggered.disconnect(gui_menu.create_settings_window)
+    del menu_button
     del gui_menu
     addon_config.__exit__()
     del addon_config
 
 
+@reviewer_will_init_answer_buttons.append
 def gui_hook_reviewer_will_init_answer_buttons(buttons_tuple: tuple[bool, Literal[1, 2, 3, 4]], reviewer: Reviewer,
                                                card: Card):
     global logger
@@ -156,7 +170,10 @@ def gui_hook_reviewer_will_init_answer_buttons(buttons_tuple: tuple[bool, Litera
     return b1, b2, b3, b4
 
 
+@reviewer_did_answer_card.append
 def gui_hook_reviewer_did_answer_card(reviewer: Reviewer, card: Card, ease: Literal[1, 2, 3, 4]):
+    global logger
+    global addon_config
     logger.debug("#")
     note = card.note()
     mid = str(note.note_type()["id"])  # Words, Grammar, Spelling, etc.
@@ -175,11 +192,8 @@ def gui_hook_reviewer_did_answer_card(reviewer: Reviewer, card: Card, ease: Lite
     logger.info(logger_output)
 
 
+####################################################################################################
 logger: logging.Logger = initialize_logger()
 addon_config: AddonConfig
 gui_menu: GUI
-
-gui_hooks.profile_did_open.append(gui_hook_profile_did_open)
-gui_hooks.reviewer_will_init_answer_buttons.append(gui_hook_reviewer_will_init_answer_buttons)
-gui_hooks.reviewer_did_answer_card.append(gui_hook_reviewer_did_answer_card)
-gui_hooks.profile_will_close.append(profile_will_close)
+menu_button: QAction

@@ -11,7 +11,7 @@ class AddonConfig:
         self.logger: logging.Logger = logger
         self.logger.debug("__init__")
         self.raw: Dict[str, Any] = self._load()
-        self._init_decks_update()
+        self._init_models_update()
 
     def __exit__(self):
         self.logger.debug("__exit__")
@@ -36,12 +36,14 @@ class AddonConfig:
         with open(config_path, "w") as f:
             json.dump(self.raw, f, indent=4)
 
-    def _init_decks_update(self):
+    def _init_models_update(self):
         self.logger.debug("_init_decks_update")
-        self._add_new_models()
-        # self._save()
+        self._add_models()
+        self._update_models()
+        self._remove_models()
+        self._save()
 
-    def _add_new_models(self):
+    def _add_models(self):
         self.logger.debug(f"_add_new_models")
         if "models" not in self.raw:
             self.raw["models"] = {}
@@ -49,13 +51,14 @@ class AddonConfig:
         models = mw.col.models.all_names_and_ids()
         for model in models:
             mid = str(model.id)
-            if mid not in self.raw["models"] and len(mw.col.find_cards(query=f"mid:{mid}")) > 0:
-                self.raw["models"][mid] = {
-                    "name": model.name
-                }
-                self._add_new_templates(mid=mid)
+            if (
+                mid not in self.raw["models"]
+                and len(mw.col.find_cards(query=f"mid:{mid}")) > 0
+            ):
+                self.raw["models"][mid] = {"name": model.name}
+                self._add_templates(mid=mid)
 
-    def _add_new_templates(self, mid: str):
+    def _add_templates(self, mid: str):
         self.logger.debug(f"_add_new_templates {mid}")
         if "templates" not in self.raw["models"][mid]:
             self.raw["models"][mid]["templates"] = {}
@@ -71,11 +74,65 @@ class AddonConfig:
                     "median_quantile": 0,
                     "n": 0,
                     "review_mode": "4333",
-                    "learn_mode": "3311"
+                    "learn_mode": "3311",
                 }
 
-    def get_model_state(self, mid: str, key: str):
+    def _update_models(self):
+        self.logger.debug(f"_update_models")
+        for model in mw.col.models.all_names_and_ids():
+            mid = str(model.id)
+            if mid in self.raw["models"]:
+                if model.name != self.raw["models"][mid]["name"]:
+                    self.logger.warning(
+                        f"Model ID: {mid} has been renamed from '{self.raw['models'][mid]['name']}' to '{model.name}'"
+                    )
+                    self.raw["models"][mid]["name"] = model.name
+                self._update_templates(mid=mid)
 
+    def _update_templates(self, mid: str):
+        self.logger.debug(f"_update_templates {mid}")
+        templates: dict = mw.col.models.get(id=mid)["tmpls"]
+        for template in templates:
+            t_ord = str(template["ord"])
+            if (
+                t_ord in self.raw["models"][mid]["templates"]
+                and self.raw["models"][mid]["templates"][t_ord]["name"]
+                != template["name"]
+            ):
+                self.logger.warning(
+                    f"Template ID: {t_ord} of model ID: {mid} has been renamed from '{self.raw['models'][mid]['templates'][t_ord]['name']}' to '{template['name']}'"
+                )
+                self.raw["models"][mid]["templates"][t_ord]["name"] = template["name"]
+
+    def _remove_models(self):
+        self.logger.debug(f"_remove_models")
+        current_models_ids = [
+            str(model.id) for model in mw.col.models.all_names_and_ids()
+        ]
+        addon_models_ids = list(self.raw["models"].keys())
+        for addon_models_id in addon_models_ids:
+            if addon_models_id not in current_models_ids:
+                self.logger.warning(
+                    f'{self.raw["models"][addon_models_id]["name"]} has been removed.'
+                )
+                del self.raw["models"][addon_models_id]
+                continue
+            self._remove_templates(mid=addon_models_id)
+
+    def _remove_templates(self, mid: str):
+        self.logger.debug(f"_remove_templates")
+        current_templates_ids = [
+            str(t["ord"]) for t in mw.col.models.get(id=mid)["tmpls"]
+        ]
+        addon_temp_ids = list(self.raw["models"][mid]["templates"].keys())
+        for addon_temp_id in addon_temp_ids:
+            if addon_temp_id not in current_templates_ids:
+                self.logger.warning(
+                    f'{self.raw["models"][mid][addon_temp_id]["name"]} has been removed.'
+                )
+                del self.raw["models"][mid][addon_temp_id]
+
+    def get_model_state(self, mid: str, key: str):
         if mid in self.raw["models"] and key in self.raw["models"][mid]:
             value = self.raw["models"][mid][key]
             mid_name = self.raw["models"][mid]["name"]
@@ -86,12 +143,17 @@ class AddonConfig:
             return None
 
     def get_template_state(self, mid: str, t_ord: str, key: str):
-        if mid in self.raw["models"] and t_ord in self.raw["models"][mid]["templates"] and key in \
-                self.raw["models"][mid]["templates"][t_ord]:
+        if (
+            mid in self.raw["models"]
+            and t_ord in self.raw["models"][mid]["templates"]
+            and key in self.raw["models"][mid]["templates"][t_ord]
+        ):
             value = self.raw["models"][mid]["templates"][t_ord][key]
             mid_name = self.raw["models"][mid]["name"]
             t_ord_name = self.raw["models"][mid]["templates"][t_ord]["name"]
-            self.logger.debug(f"[{mid_name}][{t_ord_name}] get_template_state key {key} value {value}")
+            self.logger.debug(
+                f"[{mid_name}][{t_ord_name}] get_template_state key {key} value {value}"
+            )
             return value
         else:
             self.logger.error(f"[{mid}][{t_ord}] get_template_state key {key}")
@@ -103,9 +165,13 @@ class AddonConfig:
             # self._save()
             mid_name = self.raw["models"][mid]["name"]
             t_ord_name = self.raw["models"][mid]["templates"][t_ord]["name"]
-            self.logger.debug(f"[{mid_name}][{t_ord_name}] set_template_state key {key} value {value}")
+            self.logger.debug(
+                f"[{mid_name}][{t_ord_name}] set_template_state key {key} value {value}"
+            )
         else:
-            self.logger.error(f"[{mid}][{t_ord}] set_template_state key {key} value {value}")
+            self.logger.error(
+                f"[{mid}][{t_ord}] set_template_state key {key} value {value}"
+            )
 
     def get_models_ids(self):
         return sorted(list(self.raw["models"].keys()))

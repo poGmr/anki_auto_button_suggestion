@@ -14,13 +14,18 @@ from aqt.gui_hooks import profile_did_open
 from aqt.gui_hooks import profile_will_close
 from aqt.gui_hooks import reviewer_will_init_answer_buttons
 from aqt.gui_hooks import reviewer_did_answer_card
+from aqt.gui_hooks import current_note_type_did_change
 
 
 def initialize_logger():
     result = logging.getLogger(__name__)
     if not result.handlers:
-        log_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "auto_button_suggestion.log")
-        file_handler = RotatingFileHandler(log_file_path, maxBytes=3 * 1024 * 1024, backupCount=3)
+        log_file_path = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "auto_button_suggestion.log"
+        )
+        file_handler = RotatingFileHandler(
+            log_file_path, maxBytes=3 * 1024 * 1024, backupCount=3
+        )
         log_format = "%(asctime)s [%(levelname)s]: %(message)s"
         formatter = logging.Formatter(log_format)
         file_handler.setFormatter(formatter)
@@ -45,12 +50,7 @@ def _default_ease_4() -> int:
     return 4
 
 
-CARD_TYPE_MAP = {
-    0: "new",
-    1: "learning",
-    2: "review",
-    3: "relearning"
-}
+CARD_TYPE_MAP = {0: "new", 1: "learning", 2: "review", 3: "relearning"}
 CARD_QUEUE_MAP = {
     -3: "suspended",
     -2: "buried",
@@ -58,15 +58,18 @@ CARD_QUEUE_MAP = {
     0: "new",
     1: "learning",
     2: "review",
-    3: "day learning"
+    3: "day learning",
 }
-REVLOG_TYPE_MAP = {
-    0: "learn",
-    1: "review",
-    2: "relearn",
-    3: "filtered",
-    4: "manual"
-}
+REVLOG_TYPE_MAP = {0: "learn", 1: "review", 2: "relearn", 3: "filtered", 4: "manual"}
+
+
+def update_template(mid: str, t_ord: str) -> None:
+    global logger
+    global addon_config
+    statistics = TimeStatistic(
+        logger=logger, add_on_config=addon_config, mid=mid, t_ord=t_ord
+    )
+    statistics.update_template_stats()
 
 
 @profile_did_open.append
@@ -80,8 +83,7 @@ def gui_hook_profile_did_open():
     for mid in addon_config.get_models_ids():
         for t_ord in addon_config.get_templates_ids(mid):
             if addon_config.get_template_state(mid=mid, t_ord=t_ord, key="enabled"):
-                statistics = TimeStatistic(logger=logger, add_on_config=addon_config, mid=mid, t_ord=t_ord)
-                statistics.update_template_stats()
+                update_template(mid=mid, t_ord=t_ord)
 
     gui_menu = GUI(logger=logger, add_on_config=addon_config)
     menu_button = QAction("Auto Button Suggestion", mw)
@@ -104,8 +106,9 @@ def profile_will_close():
 
 
 @reviewer_will_init_answer_buttons.append
-def gui_hook_reviewer_will_init_answer_buttons(buttons_tuple: tuple[bool, Literal[1, 2, 3, 4]], reviewer: Reviewer,
-                                               card: Card):
+def gui_hook_reviewer_will_init_answer_buttons(
+    buttons_tuple: tuple[bool, Literal[1, 2, 3, 4]], reviewer: Reviewer, card: Card
+):
     global logger
     global addon_config
     logger.debug("#")
@@ -123,25 +126,30 @@ def gui_hook_reviewer_will_init_answer_buttons(buttons_tuple: tuple[bool, Litera
         reviewer._defaultEase = _default_ease_3
         return buttons_tuple
     ####################################################################################################
-    statistics = TimeStatistic(logger=logger, add_on_config=addon_config, mid=mid, t_ord=t_ord)
-    statistics.update_template_stats()
+    update_template(mid=mid, t_ord=t_ord)
     if addon_config.get_template_state(mid=mid, t_ord=t_ord, key="n") < 20:
         logger.debug(f"[{mid_name}][{t_ord_name}] too few elements.")
         reviewer._defaultEase = _default_ease_3
         return buttons_tuple
     ####################################################################################################
-    dec_maker = DecisionMaker(logger=logger, add_on_config=addon_config, mid=mid, t_ord=t_ord)
+    dec_maker = DecisionMaker(
+        logger=logger, add_on_config=addon_config, mid=mid, t_ord=t_ord
+    )
     decision: int = 3
     debug_output = ""
     if c_type in (1, 3) and c_queue in (1, 3):
-        learn_mode = addon_config.get_template_state(mid=mid, t_ord=t_ord, key="learn_mode")
+        learn_mode = addon_config.get_template_state(
+            mid=mid, t_ord=t_ord, key="learn_mode"
+        )
         if learn_mode == "3311":
             decision = dec_maker.get_decision_3311(c_time_taken)
         if learn_mode == "3331":
             decision = dec_maker.get_decision_3331(c_time_taken)
         debug_output = f"[{mid_name}][{t_ord_name}] Mode: {learn_mode}, Card time taken: {c_time_taken},"
     if c_type in (0, 2) and c_queue in (0, 2, 4):
-        review_mode = addon_config.get_template_state(mid=mid, t_ord=t_ord, key="review_mode")
+        review_mode = addon_config.get_template_state(
+            mid=mid, t_ord=t_ord, key="review_mode"
+        )
         if review_mode == "4332":
             decision = dec_maker.get_decision_4332(c_time_taken)
         if review_mode == "4333":
@@ -151,10 +159,10 @@ def gui_hook_reviewer_will_init_answer_buttons(buttons_tuple: tuple[bool, Litera
     logger.debug(debug_output)
 
     ####################################################################################################
-    b1 = (1, 'Again')
-    b2 = (2, 'Hard')
-    b3 = (3, 'Good')
-    b4 = (4, 'Easy')
+    b1 = (1, "Again")
+    b2 = (2, "Hard")
+    b3 = (3, "Good")
+    b4 = (4, "Easy")
     if decision == 1:
         b1 = (1, "<b><u>AGAIN</u></b>")
         reviewer._defaultEase = _default_ease_1
@@ -171,7 +179,9 @@ def gui_hook_reviewer_will_init_answer_buttons(buttons_tuple: tuple[bool, Litera
 
 
 @reviewer_did_answer_card.append
-def gui_hook_reviewer_did_answer_card(reviewer: Reviewer, card: Card, ease: Literal[1, 2, 3, 4]):
+def gui_hook_reviewer_did_answer_card(
+    reviewer: Reviewer, card: Card, ease: Literal[1, 2, 3, 4]
+):
     global logger
     global addon_config
     logger.debug("#")
@@ -182,14 +192,21 @@ def gui_hook_reviewer_did_answer_card(reviewer: Reviewer, card: Card, ease: Lite
     t_ord_name: str = addon_config.get_template_state(mid=mid, t_ord=t_ord, key="name")
     c_type = card.type
     c_queue = card.queue
+    logger_output = f"[{mid_name}][{t_ord_name}] User pressed button: {ease}"
+    logger_output += f" Auto button was: {reviewer._defaultEase()} ->"
     if c_type in (1, 3) and c_queue in (1, 3):
-        logger_output = f"[LEARN][{mid_name}][{t_ord_name}] User pressed button: {ease}."
+        logger_output += f" [LEARN]"
     elif c_type in (0, 2) and c_queue in (0, 2, 4):
-        logger_output = f"[REVIEW][{mid_name}][{t_ord_name}] User pressed button: {ease}."
+        logger_output += f" [REVIEW]"
     else:
-        logger_output = f"Error of type / queue."
-    logger_output += f" Auto button was: {reviewer._defaultEase()}"
+        logger_output += f" [Error of type / queue]"
     logger.info(logger_output)
+
+
+@current_note_type_did_change.append
+def current_note_type_did_change():
+    global logger
+    logger.error("current_note_type_did_change")
 
 
 ####################################################################################################

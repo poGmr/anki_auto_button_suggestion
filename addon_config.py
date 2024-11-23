@@ -74,7 +74,7 @@ class AddonConfig:
                     "median_quantile": 0,
                     "n": 0,
                     "review_mode": "4333",
-                    "learn_mode": "3311",
+                    "learn_mode": "3331",
                 }
 
     def _update_models(self):

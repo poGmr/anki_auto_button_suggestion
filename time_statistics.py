@@ -5,21 +5,32 @@ from aqt import mw
 
 
 class TimeStatistic:
-    def __init__(self, logger: logging.Logger, add_on_config: AddonConfig, mid: str, t_ord: str):
+    def __init__(
+        self, logger: logging.Logger, add_on_config: AddonConfig, mid: str, t_ord: str
+    ):
         self.logger: logging.Logger = logger
         self.add_on_config: AddonConfig = add_on_config
         self.mid: str = mid
-        self.mid_name: str = self.add_on_config.get_model_state(mid=self.mid, key="name")
+        self.mid_name: str = self.add_on_config.get_model_state(
+            mid=self.mid, key="name"
+        )
         self.t_ord: str = t_ord
-        self.t_ord_name: str = self.add_on_config.get_template_state(mid=self.mid, t_ord=self.t_ord, key="name")
+        self.t_ord_name: str = self.add_on_config.get_template_state(
+            mid=self.mid, t_ord=self.t_ord, key="name"
+        )
         self.raw_times: list[int] = self._get_template_times()
         self.raw_times_n: int = len(self.raw_times)
+
         self._debug_before_clean_up()
         self.clean_times: list[int] = self._create_clean_up_times()
         self.clean_times_n: int = len(self.clean_times)
-        self.add_on_config.set_template_state(mid=self.mid, t_ord=self.t_ord, key="n", value=self.clean_times_n)
+        self.add_on_config.set_template_state(
+            mid=self.mid, t_ord=self.t_ord, key="n", value=self.clean_times_n
+        )
         self._debug_after_clean_up()
-        self.hard_quantile, self.median_quantile, self.easy_quantile = self._get_quantiles()
+        self.hard_quantile, self.median_quantile, self.easy_quantile = (
+            self._get_quantiles()
+        )
 
     def _get_template_times(self) -> list[int]:
         query: str = f"""
@@ -39,7 +50,9 @@ class TimeStatistic:
 
     def _debug_before_clean_up(self):
         if self.raw_times_n < 1:
-            self.logger.debug(f"[{self.mid_name}][{self.t_ord_name}] _debug_before_clean_up - empty list.")
+            self.logger.debug(
+                f"[{self.mid_name}][{self.t_ord_name}] _debug_before_clean_up - empty list."
+            )
             return
         debug_output = f"[{self.mid_name}][{self.t_ord_name}] Before clean up: "
         debug_output += f"n {self.raw_times_n} "
@@ -51,8 +64,10 @@ class TimeStatistic:
         self.logger.debug(debug_output)
 
     def _debug_after_clean_up(self):
-        if self.raw_times_n < 1:
-            self.logger.debug(f"[{self.mid_name}][{self.t_ord_name}] _debug_after_clean_up - empty list.")
+        if self.clean_times_n < 1:
+            self.logger.debug(
+                f"[{self.mid_name}][{self.t_ord_name}] _debug_after_clean_up - empty list."
+            )
             return
         debug_output = f"[{self.mid_name}][{self.t_ord_name}] After clean up: "
         debug_output += f"n {self.clean_times_n} "
@@ -65,7 +80,9 @@ class TimeStatistic:
 
     def _create_clean_up_times(self) -> list[int]:
         if self.raw_times_n < 1:
-            self.logger.debug(f"[{self.mid_name}][{self.t_ord_name}] _clean_up_times - empty list.")
+            self.logger.debug(
+                f"[{self.mid_name}][{self.t_ord_name}] _clean_up_times - empty list."
+            )
             return []
         first_5_per = int(0.05 * self.raw_times_n)
         last_5_per = int(0.95 * self.raw_times_n)
@@ -73,19 +90,35 @@ class TimeStatistic:
 
     def _get_quantiles(self) -> tuple[int, int, int]:
         if self.clean_times_n < 4:
-            self.logger.debug(f"[{self.mid_name}][{self.t_ord_name}] _get_quantiles - empty list.")
+            self.logger.debug(
+                f"[{self.mid_name}][{self.t_ord_name}] _get_quantiles - empty list."
+            )
             return 0, 0, 0
         quantiles_times = [round(q) for q in quantiles(self.clean_times, n=4)]
         hard_quantile = quantiles_times[2]
         median_quantile = quantiles_times[1]
         easy_quantile = quantiles_times[0]
-        self.logger.debug(f"[{self.mid_name}][{self.t_ord_name}] quantiles_times: {quantiles_times}")
+        self.logger.debug(
+            f"[{self.mid_name}][{self.t_ord_name}] quantiles_times: {quantiles_times}"
+        )
         return hard_quantile, median_quantile, easy_quantile
 
     def update_template_stats(self):
-        self.add_on_config.set_template_state(mid=self.mid, t_ord=self.t_ord, key="hard_quantile",
-                                              value=self.hard_quantile)
-        self.add_on_config.set_template_state(mid=self.mid, t_ord=self.t_ord, key="median_quantile",
-                                              value=self.median_quantile)
-        self.add_on_config.set_template_state(mid=self.mid, t_ord=self.t_ord, key="easy_quantile",
-                                              value=self.easy_quantile)
+        self.add_on_config.set_template_state(
+            mid=self.mid,
+            t_ord=self.t_ord,
+            key="hard_quantile",
+            value=self.hard_quantile,
+        )
+        self.add_on_config.set_template_state(
+            mid=self.mid,
+            t_ord=self.t_ord,
+            key="median_quantile",
+            value=self.median_quantile,
+        )
+        self.add_on_config.set_template_state(
+            mid=self.mid,
+            t_ord=self.t_ord,
+            key="easy_quantile",
+            value=self.easy_quantile,
+        )

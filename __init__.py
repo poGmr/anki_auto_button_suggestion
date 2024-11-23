@@ -30,7 +30,7 @@ def initialize_logger():
         formatter = logging.Formatter(log_format)
         file_handler.setFormatter(formatter)
         result.addHandler(file_handler)
-        result.setLevel(logging.INFO)
+        result.setLevel(logging.DEBUG)
     return result
 
 
@@ -50,17 +50,11 @@ def _default_ease_4() -> int:
     return 4
 
 
-CARD_TYPE_MAP = {0: "new", 1: "learning", 2: "review", 3: "relearning"}
-CARD_QUEUE_MAP = {
-    -3: "suspended",
-    -2: "buried",
-    -1: "user buried",
-    0: "new",
-    1: "learning",
-    2: "review",
-    3: "day learning",
-}
-REVLOG_TYPE_MAP = {0: "learn", 1: "review", 2: "relearn", 3: "filtered", 4: "manual"}
+# CARD_TYPE_MAP 0=learn, 1=review, 2=relearn, 3=filtered, 4=manual
+# CARD_QUEUE_MAP
+#       -- 0=new, 1=learning, 2=review (as for type)
+#       -- 3=in learning, next rev in at least a day after the previous review
+#       -- 4=preview
 
 
 def update_template(mid: str, t_ord: str) -> None:
@@ -107,7 +101,7 @@ def profile_will_close():
 
 @reviewer_will_init_answer_buttons.append
 def gui_hook_reviewer_will_init_answer_buttons(
-    buttons_tuple: tuple[bool, Literal[1, 2, 3, 4]], reviewer: Reviewer, card: Card
+        buttons_tuple: tuple[bool, Literal[1, 2, 3, 4]], reviewer: Reviewer, card: Card
 ):
     global logger
     global addon_config
@@ -180,7 +174,7 @@ def gui_hook_reviewer_will_init_answer_buttons(
 
 @reviewer_did_answer_card.append
 def gui_hook_reviewer_did_answer_card(
-    reviewer: Reviewer, card: Card, ease: Literal[1, 2, 3, 4]
+        reviewer: Reviewer, card: Card, ease: Literal[1, 2, 3, 4]
 ):
     global logger
     global addon_config
